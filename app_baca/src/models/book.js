@@ -1,10 +1,12 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
+import { v4 as uuidv4 } from 'uuid';
 
-const Book = sequelize.define('Book', {
+export const Book = sequelize.define('Book', {
     id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4, // biar portable
+        allowNull: false,
         primaryKey: true
     },
     penulis: {
@@ -37,4 +39,3 @@ const Book = sequelize.define('Book', {
     timestamps: false
 });
 
-export default Book;

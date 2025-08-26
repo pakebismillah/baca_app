@@ -1,4 +1,4 @@
-import Book from '../models/book.js';
+import {Book} from '../models/book.js';
 
 // GET all books
 export async function getAllBooks(req, res) {

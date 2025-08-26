@@ -1,10 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import sequelize from './config/database.js';
-import Book from './models/book.js';
-import bookRoutes from './routes/bookroutes.js';
-import errorHandler from './middleware/errorHandling.js';
+import sequelize from './src/config/database.js';
+import {Book} from './src/models/book.js';
+import bookRoutes from './src/routes/bookroutes.js';
+import errorHandler from './src/middleware/errorHandling.js';
 
 dotenv.config();
 
