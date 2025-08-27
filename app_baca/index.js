@@ -5,6 +5,7 @@ import sequelize from './src/config/database.js';
 import {Book} from './src/models/book.js';
 import bookRoutes from './src/routes/bookroutes.js';
 import errorHandler from './src/middleware/errorHandling.js';
+import aiRoutes from './src/routes/aiRoute.js';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json())
 
 //routes
 app.use(bookRoutes);
+app.use(aiRoutes);
 
 //error handling middleware
 app.use(errorHandler);
