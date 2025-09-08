@@ -46,3 +46,9 @@ Buatlah peubahan pada kode kalian untuk dapat melakukan CRUD operations dengan d
 | DELETE | /books/:id     | Melakukan *delete* action terhadap data buku berdasarkan `id` yang dikirimkan |
 
 Silahkan pastikan perubahan tersebut sesuai dengan halaman-halaman yang telah tersedia berdasarkan fungsinya masing-masing.
+
+lalu aku membuat fungsi lagi yaitu sql assistant. dia menggunakan langgraph dengan ai groq, tools nya sqltoolkit. nah lalu dia di buatkan model dan ai route nya sendiri
+
+post /ai/ask adalah route nya. 
+
+nah dari sini aku ingin membuat front end nya. nanti ada 2 halaman, yang satu bagian database (query nya ditampilkan isinya) lalu satu lagi adalah halaman ai yang nanti dia bisa menyimpan obrolan, history nya di tampilkan 
