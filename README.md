@@ -51,4 +51,4 @@ lalu aku membuat fungsi lagi yaitu sql assistant. dia menggunakan langgraph deng
 
 post /ai/ask adalah route nya. 
 
-nah dari sini aku ingin membuat front end nya. nanti ada 2 halaman, yang satu bagian database (query nya ditampilkan isinya) lalu satu lagi adalah halaman ai yang nanti dia bisa menyimpan obrolan, history nya di tampilkan 
+nah dari sini aku ingin membuat frontend nya. menggunakan react js. nanti ada 2 halaman, yang satu bagian database (query nya ditampilkan isinya) lalu satu lagi adalah halaman ai yang nanti dia bisa menyimpan obrolan, history nya di tampilkan 
