@@ -1,114 +1,123 @@
 import { useState, useEffect } from "react";
 
-// ✅ pindah keluar biar stabil (gak bikin warning)
-const initialForm = {
-  penulis: "",
-  judul: "",
-  nama_yang_pinjam: "",
-  tahun_publish: "",
-  sudah_dikembalikan: false,
-  tanggal_pinjam: "",
-  tanggal_dikembalikan: "",
-};
-
 export default function BookForm({ onSave, selectedBook, onCancel }) {
-  const [formData, setFormData] = useState(initialForm);
+  const [form, setForm] = useState({
+    penulis: "",
+    judul: "",
+    nama_yang_pinjam: "",
+    tahun_publish: "",
+    sudah_dikembalikan: false,
+    tanggal_pinjam: "",
+    tanggal_kembali: "",
+  });
 
   useEffect(() => {
-    if (selectedBook) {
-      setFormData({
-        ...initialForm,
-        ...selectedBook,
-        tahun_publish: selectedBook.tahun_publish || "",
-        tanggal_pinjam: selectedBook.tanggal_pinjam
-          ? selectedBook.tanggal_pinjam.split("T")[0]
-          : "",
-        tanggal_dikembalikan: selectedBook.tanggal_dikembalikan
-          ? selectedBook.tanggal_dikembalikan.split("T")[0]
-          : "",
-      });
-    } else {
-      setFormData(initialForm);
-    }
-  }, [selectedBook]); // ✅ aman, gak ada warning lagi
+    if (selectedBook) setForm(selectedBook);
+  }, [selectedBook]);
 
-  function handleChange(e) {
+  const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
+    setForm((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
-  }
+    }));
+  };
 
-  function handleSubmit(e) {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
-
+    onSave(form);
     if (!selectedBook) {
-      // reset hanya saat tambah buku baru
-      setFormData(initialForm);
+      setForm({
+        penulis: "",
+        judul: "",
+        nama_yang_pinjam: "",
+        tahun_publish: "",
+        sudah_dikembalikan: false,
+        tanggal_pinjam: "",
+        tanggal_kembali: "",
+      });
     }
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        name="penulis"
-        placeholder="Penulis"
-        value={formData.penulis}
-        onChange={handleChange}
-        required
-      />
-      <input
-        name="judul"
-        placeholder="Judul"
-        value={formData.judul}
-        onChange={handleChange}
-        required
-      />
-      <input
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow space-y-4">
+      <h2 className="text-lg font-semibold mb-2">
+        {selectedBook ? "Edit Buku" : "Tambah Buku"}
+      </h2>
+
+      <InputField label="Penulis" name="penulis" value={form.penulis} onChange={handleChange} />
+      <InputField label="Judul" name="judul" value={form.judul} onChange={handleChange} />
+      <InputField
+        label="Nama Peminjam"
         name="nama_yang_pinjam"
-        placeholder="Nama Peminjam"
-        value={formData.nama_yang_pinjam}
+        value={form.nama_yang_pinjam}
         onChange={handleChange}
       />
-      <input
-        type="number"
+      <InputField
+        label="Tahun Terbit"
         name="tahun_publish"
-        placeholder="Tahun Publish"
-        value={formData.tahun_publish}
+        type="number"
+        value={form.tahun_publish}
         onChange={handleChange}
       />
-      <label>
-        Sudah Dikembalikan
+      <InputField
+        label="Tanggal Pinjam"
+        name="tanggal_pinjam"
+        type="date"
+        value={form.tanggal_pinjam}
+        onChange={handleChange}
+      />
+      <InputField
+        label="Tanggal Kembali"
+        name="tanggal_kembali"
+        type="date"
+        value={form.tanggal_kembali}
+        onChange={handleChange}
+      />
+
+      <label className="flex items-center gap-2">
         <input
           type="checkbox"
           name="sudah_dikembalikan"
-          checked={formData.sudah_dikembalikan}
+          checked={form.sudah_dikembalikan}
           onChange={handleChange}
         />
+        <span className="text-sm">Sudah dikembalikan</span>
       </label>
-      <input
-        type="date"
-        name="tanggal_pinjam"
-        value={formData.tanggal_pinjam}
-        onChange={handleChange}
-      />
-      <input
-        type="date"
-        name="tanggal_dikembalikan"
-        value={formData.tanggal_dikembalikan}
-        onChange={handleChange}
-      />
 
-      <button type="submit">
-        {selectedBook ? "Update Buku" : "Tambah Buku"}
-      </button>
-      {selectedBook && (
-        <button type="button" onClick={onCancel}>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300"
+        >
           Batal
         </button>
-      )}
+        <button
+          type="submit"
+          className="rounded-lg px-4 py-2 text-sm bg-blue-500 text-white hover:bg-blue-600"
+        >
+          Simpan
+        </button>
+      </div>
     </form>
+  );
+}
+
+function InputField({ label, name, value, onChange, type = "text" }) {
+  return (
+    <div className="space-y-1">
+      <label htmlFor={name} className="block text-sm font-medium">
+        {label}
+      </label>
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+      />
+    </div>
   );
 }

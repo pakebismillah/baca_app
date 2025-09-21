@@ -1,38 +1,15 @@
-import { useState } from "react";
+import { Search } from "lucide-react";
 
 export default function SearchBar({ onSearch }) {
-  const [query, setQuery] = useState({ penulis: "", judul: "", nama_yang_pinjam: "" });
-
-  function handleChange(e) {
-    setQuery({ ...query, [e.target.name]: e.target.value });
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    onSearch(query);
-  }
-
   return (
-    <form onSubmit={handleSubmit}>
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
       <input
-        name="penulis"
-        placeholder="Cari Penulis"
-        value={query.penulis}
-        onChange={handleChange}
+        type="text"
+        className="w-full rounded-xl border border-gray-300 pl-10 pr-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+        placeholder="Cari judul buku..."
+        onChange={(e) => onSearch(e.target.value)}
       />
-      <input
-        name="judul"
-        placeholder="Cari Judul"
-        value={query.judul}
-        onChange={handleChange}
-      />
-      <input
-        name="nama_yang_pinjam"
-        placeholder="Cari Peminjam"
-        value={query.nama_yang_pinjam}
-        onChange={handleChange}
-      />
-      <button type="submit">Cari</button>
-    </form>
+    </div>
   );
 }
