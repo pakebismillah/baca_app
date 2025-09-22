@@ -1,11 +1,42 @@
-import { Book } from '../models/book.js';
-import { Op } from 'sequelize';
+import { Book } from "../models/book.js";
+import { Peminjaman } from "../models/peminjaman.js";
+import { Op } from "sequelize";
 
-// GET all books
+// GET all books + status apakah sedang dipinjam
 export async function getAllBooks(req, res) {
   try {
-    const books = await Book.findAll();
-    res.json(books);
+    const books = await Book.findAll({
+      include: [{ model: Peminjaman, as: "riwayat" }],
+    });
+
+    const data = books.map(book => {
+      const sedangDipinjam = book.riwayat.some(r => r.tanggal_dikembalikan === null);
+      return {
+        id: book.id,
+        penulis: book.penulis,
+        judul: book.judul,
+        tahun_publish: book.tahun_publish,
+        sedangDipinjam,
+      };
+    });
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+// GET detail book + history peminjaman
+export async function getBookDetail(req, res) {
+  try {
+    const { id } = req.params;
+    const book = await Book.findByPk(id, {
+      include: [{ model: Peminjaman, as: "riwayat" }],
+    });
+
+    if (!book) return res.status(404).json({ message: "Book not found" });
+
+    res.json(book);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -26,7 +57,7 @@ export async function updateBook(req, res) {
   try {
     const { id } = req.params;
     const book = await Book.findByPk(id);
-    if (!book) return res.status(404).json({ message: 'Book not found' });
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
     await book.update(req.body);
     res.json(book);
@@ -40,10 +71,10 @@ export async function deleteBook(req, res) {
   try {
     const { id } = req.params;
     const book = await Book.findByPk(id);
-    if (!book) return res.status(404).json({ message: 'Book not found' });
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
     await book.destroy();
-    res.json({ message: 'Book deleted' });
+    res.json({ message: "Book deleted" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -52,14 +83,17 @@ export async function deleteBook(req, res) {
 // GET search books
 export async function searchBooks(req, res) {
   try {
-    const { penulis, judul, nama_yang_pinjam } = req.query;
+    const { penulis, judul } = req.query;
     const whereClause = {};
 
     if (penulis) whereClause.penulis = { [Op.iLike]: `%${penulis}%` };
     if (judul) whereClause.judul = { [Op.iLike]: `%${judul}%` };
-    if (nama_yang_pinjam) whereClause.nama_yang_pinjam = { [Op.iLike]: `%${nama_yang_pinjam}%` };
 
-    const books = await Book.findAll({ where: whereClause });
+    const books = await Book.findAll({
+      where: whereClause,
+      include: [{ model: Peminjaman, as: "riwayat" }],
+    });
+
     res.json(books);
   } catch (error) {
     res.status(500).json({ error: error.message });

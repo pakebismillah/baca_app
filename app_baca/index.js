@@ -2,8 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import sequelize from './src/config/database.js';
-import {Book} from './src/models/book.js';
 import bookRoutes from './src/routes/bookroutes.js';
+import peminjamanRoutes from './src/routes/peminjamanRoute.js';
 import errorHandler from './src/middleware/errorHandling.js';
 import aiRoutes from './src/routes/aiRoute.js';
 
@@ -19,6 +19,8 @@ app.use(express.json())
 //routes
 app.use(bookRoutes);
 app.use(aiRoutes);
+app.use(peminjamanRoutes);
+
 
 //error handling middleware
 app.use(errorHandler);

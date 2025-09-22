@@ -37,14 +37,90 @@ const PageHeader = ({ title, subtitle }) => (
   </div>
 );
 
+// Book Statistics Component
+const BookStats = ({ books }) => {
+  const tersedia = books.filter(book => !book.sedangDipinjam).length;
+  const dipinjam = books.filter(book => book.sedangDipinjam).length;
+  
+  return (
+    <div className="flex gap-4 text-sm">
+      <span className="text-gray-600">Total: {books.length}</span>
+      <span className="text-green-600 font-medium">Tersedia: {tersedia}</span>
+      <span className="text-red-600 font-medium">Dipinjam: {dipinjam}</span>
+    </div>
+  );
+};
+
+// Modal untuk Input Nama Peminjam
+const PinjamModal = ({ isOpen, onClose, onConfirm, bookTitle, loading }) => {
+  const [namaPeminjam, setNamaPeminjam] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (namaPeminjam.trim()) {
+      onConfirm(namaPeminjam.trim());
+      setNamaPeminjam('');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pinjam Buku</h3>
+        <p className="text-gray-600 mb-4">Buku: <span className="font-medium">{bookTitle}</span></p>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nama Peminjam
+            </label>
+            <input
+              type="text"
+              value={namaPeminjam}
+              onChange={(e) => setNamaPeminjam(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Masukkan nama peminjam"
+              required
+              disabled={loading}
+            />
+          </div>
+          
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              disabled={loading}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+              disabled={loading || !namaPeminjam.trim()}
+            >
+              {loading ? 'Memproses...' : 'Pinjam'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function DatabasePage() {
   const [books, setBooks] = useState([]);
   const [selectedBook, setSelectedBook] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState('success');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [pinjamModal, setPinjamModal] = useState({ isOpen: false, book: null });
 
   const API_URL = "http://localhost:3000/books";
+  const PEMINJAMAN_API = "http://localhost:3000/peminjaman";
 
   // Show message with auto-dismiss
   const showMessage = (text, type = 'success') => {
@@ -53,12 +129,27 @@ export default function DatabasePage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  async function fetchBooks() {
+  async function fetchBooks(statusFilter = filterStatus) {
     setLoading(true);
     try {
       const res = await fetch(API_URL);
       if (!res.ok) throw new Error('Failed to fetch books');
-      const data = await res.json();
+      let data = await res.json();
+
+      // Tambahkan properti sedangDipinjam
+      data = data.map(book => ({
+        ...book,
+        sedangDipinjam: book.riwayat?.some(r => r.tanggalDikembalikan === null)
+      }));
+
+      // Filter status
+      if (statusFilter !== 'all') {
+        data = data.filter(book => statusFilter === 'tersedia'
+          ? !book.sedangDipinjam
+          : book.sedangDipinjam
+        );
+      }
+
       setBooks(data);
     } catch (error) {
       showMessage('Gagal memuat data buku', 'error');
@@ -76,9 +167,7 @@ export default function DatabasePage() {
     try {
       const dataToSend = {
         ...bookData,
-        tahun_publish: bookData.tahun_publish ? parseInt(bookData.tahun_publish) : null,
-        tanggal_pinjam: bookData.tanggal_pinjam || null,
-        tanggal_dikembalikan: bookData.tanggal_dikembalikan || null,
+        tahun_publish: bookData.tahun_publish ? parseInt(bookData.tahun_publish) : null
       };
 
       const url = selectedBook ? `${API_URL}/${selectedBook.id}` : API_URL;
@@ -103,18 +192,13 @@ export default function DatabasePage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus buku ini?')) {
-      return;
-    }
-
+    if (!window.confirm('Apakah Anda yakin ingin menghapus buku ini?')) return;
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error('Failed to delete book');
-      
       await fetchBooks();
       showMessage("Buku berhasil dihapus!", 'success');
-   
     } catch (error) {
       showMessage('Gagal menghapus buku', 'error');
     } finally {
@@ -128,9 +212,15 @@ export default function DatabasePage() {
       const params = new URLSearchParams({ q: query.judul });
       const res = await fetch(`${API_URL}/search?${params}`);
       if (!res.ok) throw new Error('Search failed');
-      
       const data = await res.json();
-      setBooks(data);
+
+      // Tambahkan properti sedangDipinjam
+      const dataWithStatus = data.map(book => ({
+        ...book,
+        sedangDipinjam: book.riwayat?.some(r => r.tanggalDikembalikan === null)
+      }));
+
+      setBooks(dataWithStatus);
     } catch (error) {
       showMessage('Gagal melakukan pencarian', 'error');
     } finally {
@@ -138,19 +228,70 @@ export default function DatabasePage() {
     }
   }
 
-  const handleClearSearch = () => {
-    fetchBooks();
+  const handleClearSearch = () => fetchBooks();
+
+  const handleFilterStatus = (status) => {
+    setFilterStatus(status);
+    fetchBooks(status);
+  };
+
+  // Handle peminjaman buku
+  const handlePinjamBuku = (book) => setPinjamModal({ isOpen: true, book });
+
+  const handleConfirmPinjam = async (namaPeminjam) => {
+    if (!pinjamModal.book) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`${PEMINJAMAN_API}/${pinjamModal.book.id}/pinjam`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ namaPeminjam }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to borrow book');
+      }
+
+      setPinjamModal({ isOpen: false, book: null });
+      await fetchBooks();
+      showMessage(`Buku "${pinjamModal.book.judul}" berhasil dipinjam oleh ${namaPeminjam}!`, 'success');
+    } catch (error) {
+      showMessage(error.message || 'Gagal meminjam buku', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKembalikanBuku = async (book) => {
+    if (!window.confirm(`Apakah Anda yakin ingin mengembalikan buku "${book.judul}"?`)) return;
+    setLoading(true);
+    try {
+      const activePeminjaman = book.riwayat.find(r => r.tanggalDikembalikan === null);
+      if (!activePeminjaman) throw new Error('Tidak ada peminjaman aktif untuk buku ini');
+
+      const response = await fetch(`${PEMINJAMAN_API}/${activePeminjaman.id}/kembalikan`, { method: "PUT" });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to return book');
+      }
+
+      await fetchBooks();
+      showMessage(`Buku "${book.judul}" berhasil dikembalikan!`, 'success');
+    } catch (error) {
+      showMessage(error.message || 'Gagal mengembalikan buku', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-full">
-      {/* Page Header */}
       <PageHeader 
         title="Manajemen Buku" 
         subtitle="Kelola koleksi buku perpustakaan Anda dengan mudah"
       />
 
-      {/* Alert Messages */}
       {message && (
         <AlertMessage
           message={message}
@@ -159,9 +300,7 @@ export default function DatabasePage() {
         />
       )}
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left Column - Book Form */}
         <div className="xl:col-span-1">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -183,19 +322,27 @@ export default function DatabasePage() {
           </div>
         </div>
 
-        {/* Right Column - Book List */}
         <div className="xl:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Daftar Buku</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Total {books.length} buku dalam database
-                  </p>
+                  <BookStats books={books} />
                 </div>
-                <div className="flex-shrink-0 w-full sm:w-auto">
-                  <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => handleFilterStatus(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="tersedia">Hanya Tersedia</option>
+                    <option value="dipinjam">Sedang Dipinjam</option>
+                  </select>
+                  <div className="flex-shrink-0">
+                    <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -209,6 +356,8 @@ export default function DatabasePage() {
                   books={books} 
                   onDelete={handleDelete} 
                   onEdit={setSelectedBook}
+                  onPinjam={handlePinjamBuku}
+                  onKembalikan={handleKembalikanBuku}
                   selectedBookId={selectedBook?.id}
                 />
               )}
@@ -216,6 +365,14 @@ export default function DatabasePage() {
           </div>
         </div>
       </div>
+
+      <PinjamModal
+        isOpen={pinjamModal.isOpen}
+        onClose={() => setPinjamModal({ isOpen: false, book: null })}
+        onConfirm={handleConfirmPinjam}
+        bookTitle={pinjamModal.book?.judul}
+        loading={loading}
+      />
     </div>
   );
 }

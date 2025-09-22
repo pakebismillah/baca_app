@@ -7,7 +7,7 @@ import { SqlToolkit } from "langchain/agents/toolkits/sql";
 import { SqlDatabase } from "langchain/sql_db";
 import { DataSource } from "typeorm";
 import { MemorySaver } from "@langchain/langgraph";
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { saveAiLogs } from "./src/service/aiLogsService.js";
 
@@ -36,25 +36,28 @@ const agentCheckpointer = new MemorySaver();
 
 const agent = createReactAgent({
   llm: agentModel,
-  tools: toolkit.getTools(),
+  tools: [...toolkit.getTools()],
   checkpointSaver: agentCheckpointer,
 });
 
-// 3️⃣ fungsi askAgent
 export async function askAgent(question) {
   const state = await agent.invoke(
     { messages: [new HumanMessage(question)] },
-    { configurable: { thread_id: "42" } }   // thread_id fix
+    { configurable: { thread_id: "42" } }
   );
 
-  const answer = state.messages[state.messages.length - 1].content;
+  // Ambil pesan terakhir
+  const lastMsg = state.messages[state.messages.length - 1];
 
-  // simpan ke DB
-  await saveAiLogs(
-    question,
-    answer,
-    { source: "cli" }   // metadata opsional
-  );
+  // Kalau masih function-call, cari sebelum terakhir
+  let answer = lastMsg.content;
+  if (typeof answer !== "string") {
+    const prev = state.messages[state.messages.length - 2];
+    answer = prev?.content || "⚠️ AI tidak mengembalikan jawaban teks.";
+  }
+
+  // Simpan ke DB
+  await saveAiLogs(question, answer, { source: "admin" });
 
   return answer;
 }

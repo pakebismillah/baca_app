@@ -3,18 +3,18 @@ import { askAgent } from "../../percobaan.js";
 
 const router = express.Router();
 
-// Satu threadId global untuk semua request
-const GLOBAL_THREAD_ID = "main-thread";
-
 router.post("/ai/ask", async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, history } = req.body;
 
     if (!question) {
       return res.status(400).json({ error: "Question is required" });
     }
 
-    const answer = await askAgent(question, GLOBAL_THREAD_ID);
+    // Using a consistent thread_id to maintain conversation history for the user
+    const thread_id = "single-user-thread";
+
+    const answer = await askAgent(question, history || [], thread_id);
 
     res.json({ question, answer });
   } catch (err) {
