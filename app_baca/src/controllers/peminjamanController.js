@@ -1,5 +1,4 @@
-import { Book } from "../models/book.js";
-import { Peminjaman } from "../models/peminjaman.js";
+import { Book, Peminjaman } from "../models/model.js";
 
 // GET semua transaksi peminjaman
 export async function getAllPeminjaman(req, res) {
@@ -28,7 +27,9 @@ export async function pinjamBuku(req, res) {
     if (!book) return res.status(404).json({ message: "Book not found" });
 
     // cek apakah masih ada peminjaman aktif
-    const sedangDipinjam = book.riwayat.some(r => r.tanggalDikembalikan === null);
+    const sedangDipinjam = await Peminjaman.findOne({
+      where: { bookId, tanggalDikembalikan: null },
+    });
     if (sedangDipinjam) {
       return res.status(400).json({ message: "Buku sedang dipinjam" });
     }
@@ -36,7 +37,7 @@ export async function pinjamBuku(req, res) {
     const peminjaman = await Peminjaman.create({
       bookId,
       namaPeminjam,
-      tanggalPinjam: tanggalPinjam || new Date(),
+      tanggalPinjam: new Date(), // jadi kita tinggal input nama aja
       tanggalDikembalikan: null,
     });
 
@@ -51,29 +52,27 @@ export async function pinjamBuku(req, res) {
 export async function kembalikanBuku(req, res) {
   try {
     const { id } = req.params; // id peminjaman
-    const { tanggalDikembalikan } = req.body;
-
-    console.log("📥 Request kembalikanBuku:", { id, tanggalDikembalikan });
 
     const peminjaman = await Peminjaman.findByPk(id);
 
     if (!peminjaman) {
-      console.warn("⚠️ Peminjaman tidak ditemukan:", id);
       return res.status(404).json({ message: "Peminjaman not found" });
     }
 
     if (peminjaman.tanggalDikembalikan !== null) {
-      console.warn("⚠️ Buku sudah dikembalikan:", peminjaman.id);
-      return res.status(400).json({ message: "Buku sudah dikembalikan sebelumnya" });
+      return res
+        .status(400)
+        .json({ message: "Buku sudah dikembalikan sebelumnya" });
     }
 
-    await peminjaman.update({
-      tanggalDikembalikan: tanggalDikembalikan || new Date(),
+    // langsung isi tanggal sekarang
+    peminjaman.tanggalDikembalikan = new Date();
+    await peminjaman.save();
+
+    res.status(200).json({
+      message: "Buku berhasil dikembalikan",
+      peminjaman,
     });
-
-    console.log("✅ Buku berhasil dikembalikan:", peminjaman.id);
-
-    res.status(200).json({ message: "Buku berhasil dikembalikan", peminjaman });
   } catch (error) {
     console.error("❌ Error di kembalikanBuku:", error);
     res.status(500).json({ error: error.message });

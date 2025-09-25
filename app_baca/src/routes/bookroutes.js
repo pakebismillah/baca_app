@@ -1,7 +1,7 @@
 import express from 'express';
 import {
     getAllBooks,
-    getBookDetail,
+    getBookById,
     createBook,
     updateBook,
     deleteBook,
@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.get('/books', getAllBooks);          // list semua buku + status pinjam
 router.get('/books/search', searchBooks);   // cari buku
-router.get('/books/:id', getBookDetail);    // detail 1 buku + riwayat
+router.get('/books/:id', getBookById);    // detail 1 buku + riwayat
 router.post('/books', createBook);          // tambah buku
 router.put('/books/:id', updateBook);       // update buku
 router.delete('/books/:id', deleteBook);    // hapus buku

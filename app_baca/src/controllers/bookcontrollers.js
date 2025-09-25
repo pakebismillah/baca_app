@@ -1,5 +1,4 @@
-import { Book } from "../models/book.js";
-import { Peminjaman } from "../models/peminjaman.js";
+import {Book, Peminjaman} from "../models/model.js"
 import { Op } from "sequelize";
 
 // GET all books + status apakah sedang dipinjam
@@ -10,7 +9,7 @@ export async function getAllBooks(req, res) {
     });
 
     const data = books.map(book => {
-      const sedangDipinjam = book.riwayat.some(r => r.tanggal_dikembalikan === null);
+      const sedangDipinjam = book.riwayat.some(r => r.tanggalDikembalikan === null);
       return {
         id: book.id,
         penulis: book.penulis,
@@ -26,21 +25,26 @@ export async function getAllBooks(req, res) {
   }
 }
 
-// GET detail book + history peminjaman
-export async function getBookDetail(req, res) {
+// GET detail buku + riwayat peminjaman
+export async function getBookById(req, res) {
   try {
     const { id } = req.params;
+
     const book = await Book.findByPk(id, {
       include: [{ model: Peminjaman, as: "riwayat" }],
     });
 
-    if (!book) return res.status(404).json({ message: "Book not found" });
+    if (!book) {
+      return res.status(404).json({ message: "Book not found" });
+    }
 
     res.json(book);
   } catch (error) {
+    console.error("❌ Error getBookById:", error);
     res.status(500).json({ error: error.message });
   }
 }
+
 
 // POST create new book
 export async function createBook(req, res) {
