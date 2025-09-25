@@ -132,24 +132,17 @@ export default function DatabasePage() {
   async function fetchBooks(statusFilter = filterStatus) {
     setLoading(true);
     try {
-      const res = await fetch(API_URL);
-      if (!res.ok) throw new Error('Failed to fetch books');
-      let data = await res.json();
-
-      // Tambahkan properti sedangDipinjam
-      data = data.map(book => ({
-        ...book,
-        sedangDipinjam: book.riwayat?.some(r => r.tanggalDikembalikan === null)
-      }));
-
-      // Filter status
+      let url = API_URL;
       if (statusFilter !== 'all') {
-        data = data.filter(book => statusFilter === 'tersedia'
-          ? !book.sedangDipinjam
-          : book.sedangDipinjam
-        );
+        const params = new URLSearchParams({ 
+          status: statusFilter === 'tersedia' ? 'available' : 'borrowed' 
+        });
+        url = `${API_URL}?${params}`;
       }
-
+      
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch books');
+      const data = await res.json();
       setBooks(data);
     } catch (error) {
       showMessage('Gagal memuat data buku', 'error');
@@ -167,7 +160,9 @@ export default function DatabasePage() {
     try {
       const dataToSend = {
         ...bookData,
-        tahun_publish: bookData.tahun_publish ? parseInt(bookData.tahun_publish) : null
+        tahun_publish: bookData.tahun_publish ? parseInt(bookData.tahun_publish) : null,
+        tanggal_pinjam: bookData.tanggal_pinjam || null,
+        tanggal_dikembalikan: bookData.tanggal_dikembalikan || null,
       };
 
       const url = selectedBook ? `${API_URL}/${selectedBook.id}` : API_URL;
@@ -192,13 +187,18 @@ export default function DatabasePage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus buku ini?')) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus buku ini?')) {
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error('Failed to delete book');
+      
       await fetchBooks();
       showMessage("Buku berhasil dihapus!", 'success');
+   
     } catch (error) {
       showMessage('Gagal menghapus buku', 'error');
     } finally {
@@ -212,15 +212,9 @@ export default function DatabasePage() {
       const params = new URLSearchParams({ q: query.judul });
       const res = await fetch(`${API_URL}/search?${params}`);
       if (!res.ok) throw new Error('Search failed');
+      
       const data = await res.json();
-
-      // Tambahkan properti sedangDipinjam
-      const dataWithStatus = data.map(book => ({
-        ...book,
-        sedangDipinjam: book.riwayat?.some(r => r.tanggalDikembalikan === null)
-      }));
-
-      setBooks(dataWithStatus);
+      setBooks(data);
     } catch (error) {
       showMessage('Gagal melakukan pencarian', 'error');
     } finally {
@@ -228,18 +222,24 @@ export default function DatabasePage() {
     }
   }
 
-  const handleClearSearch = () => fetchBooks();
+  const handleClearSearch = () => {
+    fetchBooks();
+  };
 
+  // Handle filter status change
   const handleFilterStatus = (status) => {
     setFilterStatus(status);
     fetchBooks(status);
   };
 
   // Handle peminjaman buku
-  const handlePinjamBuku = (book) => setPinjamModal({ isOpen: true, book });
+  const handlePinjamBuku = (book) => {
+    setPinjamModal({ isOpen: true, book });
+  };
 
   const handleConfirmPinjam = async (namaPeminjam) => {
     if (!pinjamModal.book) return;
+    
     setLoading(true);
     try {
       const response = await fetch(`${PEMINJAMAN_API}/${pinjamModal.book.id}/pinjam`, {
@@ -247,12 +247,12 @@ export default function DatabasePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ namaPeminjam }),
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to borrow book');
       }
-
+      
       setPinjamModal({ isOpen: false, book: null });
       await fetchBooks();
       showMessage(`Buku "${pinjamModal.book.judul}" berhasil dipinjam oleh ${namaPeminjam}!`, 'success');
@@ -263,19 +263,34 @@ export default function DatabasePage() {
     }
   };
 
+  // Handle pengembalian buku
   const handleKembalikanBuku = async (book) => {
-    if (!window.confirm(`Apakah Anda yakin ingin mengembalikan buku "${book.judul}"?`)) return;
+    if (!window.confirm(`Apakah Anda yakin ingin mengembalikan buku "${book.judul}"?`)) {
+      return;
+    }
+
     setLoading(true);
     try {
-      const activePeminjaman = book.riwayat.find(r => r.tanggalDikembalikan === null);
-      if (!activePeminjaman) throw new Error('Tidak ada peminjaman aktif untuk buku ini');
+      // Ambil peminjaman aktif untuk buku ini
+      const peminjamanRes = await fetch(`${API_URL}/${book.id}`);
+      if (!peminjamanRes.ok) throw new Error('Failed to get book details');
+      
+      const bookDetail = await peminjamanRes.json();
+      const activePeminjaman = bookDetail.riwayat?.find(r => r.tanggalDikembalikan === null);
+      
+      if (!activePeminjaman) {
+        throw new Error('Tidak ada peminjaman aktif untuk buku ini');
+      }
 
-      const response = await fetch(`${PEMINJAMAN_API}/${activePeminjaman.id}/kembalikan`, { method: "PUT" });
+      const response = await fetch(`${PEMINJAMAN_API}/${activePeminjaman.id}/kembalikan`, {
+        method: "PUT",
+      });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to return book');
       }
-
+      
       await fetchBooks();
       showMessage(`Buku "${book.judul}" berhasil dikembalikan!`, 'success');
     } catch (error) {
@@ -287,11 +302,13 @@ export default function DatabasePage() {
 
   return (
     <div className="min-h-full">
+      {/* Page Header */}
       <PageHeader 
         title="Manajemen Buku" 
         subtitle="Kelola koleksi buku perpustakaan Anda dengan mudah"
       />
 
+      {/* Alert Messages */}
       {message && (
         <AlertMessage
           message={message}
@@ -300,7 +317,9 @@ export default function DatabasePage() {
         />
       )}
 
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left Column - Book Form */}
         <div className="xl:col-span-1">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -322,6 +341,7 @@ export default function DatabasePage() {
           </div>
         </div>
 
+        {/* Right Column - Book List */}
         <div className="xl:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
@@ -331,6 +351,7 @@ export default function DatabasePage() {
                   <BookStats books={books} />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  {/* Filter Status */}
                   <select
                     value={filterStatus}
                     onChange={(e) => handleFilterStatus(e.target.value)}
@@ -340,6 +361,8 @@ export default function DatabasePage() {
                     <option value="tersedia">Hanya Tersedia</option>
                     <option value="dipinjam">Sedang Dipinjam</option>
                   </select>
+                  
+                  {/* Search Bar */}
                   <div className="flex-shrink-0">
                     <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
                   </div>
@@ -366,6 +389,7 @@ export default function DatabasePage() {
         </div>
       </div>
 
+      {/* Modal Pinjam Buku */}
       <PinjamModal
         isOpen={pinjamModal.isOpen}
         onClose={() => setPinjamModal({ isOpen: false, book: null })}
