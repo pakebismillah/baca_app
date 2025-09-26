@@ -5,6 +5,8 @@ import BookList from "../components/BookList.jsx";
 import SearchBar from "../components/SearchBAr.jsx";
 import Spinner from "../components/Spinner.jsx";
 import PinjamModal from "../components/PinjamModal.jsx";
+import BookFilterBar from "../components/BookFilterBar.jsx";
+
 
 // Success/Error Message Component
 const AlertMessage = ({ message, type = 'success', onClose }) => {
@@ -72,27 +74,34 @@ export default function DatabasePage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  async function fetchBooks(statusFilter = filterStatus) {
-    setLoading(true);
-    try {
-      let url = API_URL;
-      if (statusFilter !== 'all') {
-        const params = new URLSearchParams({ 
-          status: statusFilter === 'tersedia' ? 'available' : 'borrowed' 
-        });
-        url = `${API_URL}?${params}`;
-      }
-      
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch books');
-      const data = await res.json();
-      setBooks(data);
-    } catch (error) {
-      showMessage('Gagal memuat data buku', 'error');
-    } finally {
-      setLoading(false);
+// Ambil data buku dengan optional filter status dan search query
+async function fetchBooks({ statusFilter = filterStatus, searchQuery = '' } = {}) {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+
+    // filter status
+    if (statusFilter && statusFilter !== 'all') {
+      params.append('status', statusFilter === 'tersedia' ? 'available' : 'borrowed');
     }
+
+    // search query
+    if (searchQuery) {
+      params.append('q', searchQuery);
+    }
+
+    const url = `${API_URL}?${params.toString()}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch books');
+    
+    const data = await res.json();
+    setBooks(data);
+  } catch (error) {
+    showMessage('Gagal memuat data buku', 'error');
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     fetchBooks();
@@ -149,31 +158,21 @@ export default function DatabasePage() {
     }
   }
 
-  async function handleSearch(query) {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ q: query.judul });
-      const res = await fetch(`${API_URL}/search?${params}`);
-      if (!res.ok) throw new Error('Search failed');
-      
-      const data = await res.json();
-      setBooks(data);
-    } catch (error) {
-      showMessage('Gagal melakukan pencarian', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
+// Search handler
+function handleSearch(query) {
+  fetchBooks({ searchQuery: query });
+}
 
-  const handleClearSearch = () => {
-    fetchBooks();
-  };
+// Clear search
+function handleClearSearch() {
+  fetchBooks({ searchQuery: '' });
+}
 
-  // Handle filter status change
-  const handleFilterStatus = (status) => {
-    setFilterStatus(status);
-    fetchBooks(status);
-  };
+// Filter status handler
+function handleFilterStatus(status) {
+  setFilterStatus(status);
+  fetchBooks({ statusFilter: status });
+}
 
   // Handle peminjaman buku
   const handlePinjamBuku = (book) => {
@@ -293,23 +292,12 @@ export default function DatabasePage() {
                   <h2 className="text-lg font-semibold text-gray-900">Daftar Buku</h2>
                   <BookStats books={books} />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                  {/* Filter Status */}
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => handleFilterStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-                  >
-                    <option value="all">Semua Status</option>
-                    <option value="tersedia">Hanya Tersedia</option>
-                    <option value="dipinjam">Sedang Dipinjam</option>
-                  </select>
-                  
-                  {/* Search Bar */}
-                  <div className="flex-shrink-0">
-                    <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
-                  </div>
-                </div>
+                <BookFilterBar
+  filterStatus={filterStatus}
+  onFilterChange={handleFilterStatus}
+  onSearch={handleSearch}
+/>
+
               </div>
             </div>
             <div className="p-6">

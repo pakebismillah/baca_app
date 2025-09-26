@@ -16,6 +16,12 @@ export async function getAllBooks(req, res) {
         judul: book.judul,
         tahun_publish: book.tahun_publish,
         sedangDipinjam,
+        riwayat: book.riwayat.map(r => ({
+      id: r.id,
+      namaPeminjam: r.namaPeminjam,
+      tanggalPinjam: r.tanggalPinjam,
+      tanggalDikembalikan: r.tanggalDikembalikan,
+    }))
       };
     });
 
@@ -87,19 +93,43 @@ export async function deleteBook(req, res) {
 // GET search books
 export async function searchBooks(req, res) {
   try {
-    const { penulis, judul } = req.query;
+    const { q } = req.query; // ambil query 'q' dari frontend
     const whereClause = {};
 
-    if (penulis) whereClause.penulis = { [Op.iLike]: `%${penulis}%` };
-    if (judul) whereClause.judul = { [Op.iLike]: `%${judul}%` };
+    if (q) {
+      // search di judul atau penulis
+      whereClause[Op.or] = [
+        { judul: { [Op.iLike]: `%${q}%` } },
+        { penulis: { [Op.iLike]: `%${q}%` } }
+      ];
+    }
 
     const books = await Book.findAll({
       where: whereClause,
       include: [{ model: Peminjaman, as: "riwayat" }],
     });
 
-    res.json(books);
+    // tambahkan properti sedangDipinjam supaya frontend bisa langsung pakai
+    const data = books.map(book => {
+      const sedangDipinjam = book.riwayat.some(r => r.tanggalDikembalikan === null);
+      return {
+        id: book.id,
+        penulis: book.penulis,
+        judul: book.judul,
+        tahun_publish: book.tahun_publish,
+        sedangDipinjam,
+        riwayat: book.riwayat.map(r => ({
+          id: r.id,
+          namaPeminjam: r.namaPeminjam,
+          tanggalPinjam: r.tanggalPinjam,
+          tanggalDikembalikan: r.tanggalDikembalikan,
+        }))
+      };
+    });
+
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }
+

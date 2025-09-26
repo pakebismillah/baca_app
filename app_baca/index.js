@@ -39,4 +39,5 @@ app.listen(PORT, async () => {
         console.error('❌ Database connection failed:', error);
     }
     console.log(`🚀 Server running on port ${PORT}`);
+
 });
